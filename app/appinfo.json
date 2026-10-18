@@ -1,0 +1,18 @@
+{
+  "id": "io.aerialhome",
+  "version": "1.5.0",
+  "vendor": "Aerial Home",
+  "type": "web",
+  "main": "index.html",
+  "title": "Aerial Home",
+  "appDescription": "Ad-free home screen with aerial scenes",
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png",
+  "iconColor": "#0b1620",
+  "bgColor": "#000000",
+  "resolution": "1920x1080",
+  "disableBackHistoryAPI": true,
+  "handlesRelaunch": true,
+  "splashBackground": "splash.jpg",
+  "spinnerOnLaunch": false
+}

@@ -1,0 +1,766 @@
+/* Aerial Home. Targets Chromium 79 (webOS 6): no `inset`, no flex `gap`, no :is()/:where(). */
+
+@font-face {
+  font-family: Inter;
+  src: url(assets/inter-latin-wght.woff2) format("woff2");
+  font-weight: 100 900;
+}
+
+html,
+body {
+  margin: 0;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: transparent;
+}
+
+#aerial {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 1920px;
+  height: 1080px;
+  font-family: Inter, sans-serif;
+  color: #fff;
+  overflow: hidden;
+  cursor: default;
+  --ic: 112px;
+  --glass-a: rgba(255, 255, 255, 0.16);
+  --glass-b: rgba(255, 255, 255, 0.07);
+  --glass-line: rgba(255, 255, 255, 0.26);
+}
+
+#aerial video,
+#aerial .layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1920px;
+  height: 1080px;
+}
+#aerial video {
+  object-fit: cover;
+}
+#aerial .layer {
+  pointer-events: none;
+}
+#aerial .dimmer,
+#aerial .fade {
+  background: #000;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+#aerial .scrim-top {
+  height: 420px;
+  background: linear-gradient(rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0));
+  transition: opacity 0.6s ease;
+}
+#aerial .scrim-bottom {
+  top: auto;
+  bottom: 0;
+  height: 560px;
+  background: linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.5));
+  transition: opacity 0.6s ease;
+}
+/* First frame of the next clip: crossfades over the outgoing clip and covers the
+   decoder switch until the new clip moves. */
+#aerial .poster {
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+#aerial .poster.show {
+  opacity: 1;
+}
+#aerial .poster.now {
+  transition: none;
+}
+
+/* Clean view (Back on the dock): only the video stays. */
+#aerial.clean .scrim-top,
+#aerial.clean .scrim-bottom,
+#aerial.clean .dimmer {
+  opacity: 0 !important;
+}
+#aerial.clean .info {
+  opacity: 0 !important;
+  transform: translateY(-120px);
+}
+#aerial.clean .dock {
+  transform: translateY(calc(var(--ic) + 260px));
+}
+
+#aerial .glass {
+  background: linear-gradient(180deg, var(--glass-a), var(--glass-b));
+  border: 1.5px solid var(--glass-line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 20px 50px rgba(0, 0, 0, 0.25);
+}
+
+/* ------------------------------------------------------------------ info */
+#aerial .info {
+  position: absolute;
+  left: 112px;
+  top: 64px;
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.35);
+  transition: opacity 0.45s ease, transform 0.55s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+#aerial .time {
+  font-size: 132px;
+  font-weight: 200;
+  letter-spacing: -3px;
+  line-height: 1;
+}
+#aerial .time small {
+  font-size: 44px;
+  font-weight: 300;
+  letter-spacing: 0;
+  margin-left: 14px;
+}
+#aerial .greet {
+  font-size: 34px;
+  font-weight: 400;
+  opacity: 0.92;
+  margin-top: 14px;
+}
+#aerial .weather {
+  display: flex;
+  align-items: center;
+  margin-top: 22px;
+  font-size: 30px;
+  opacity: 0.95;
+}
+#aerial .weather b {
+  font-weight: 600;
+  margin-right: 12px;
+}
+#aerial .weather svg {
+  width: 34px;
+  height: 34px;
+  margin-right: 12px;
+}
+
+/* ----------------------------------------------------------------- tiles */
+/* The focus ring is its own layer that fades, so moving focus only animates
+   opacity and transform; nothing has to repaint a shadow. */
+#aerial .ic {
+  width: var(--ic);
+  height: var(--ic);
+  border-radius: calc(var(--ic) / 4);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  box-sizing: border-box;
+  transition: transform 0.2s ease;
+  will-change: transform;
+}
+#aerial .ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--ic);
+  height: var(--ic);
+  border-radius: calc(var(--ic) / 4);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.95);
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+#aerial .ic img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+#aerial .ic span {
+  font-size: calc(var(--ic) / 3.7);
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+#aerial .ic svg {
+  width: 46%;
+  height: 46%;
+}
+#aerial .ic.input {
+  background: linear-gradient(160deg, #3a3d46, #22242a);
+  flex-direction: column;
+}
+#aerial .ic.input svg {
+  width: 40%;
+  height: 40%;
+}
+#aerial .ic.input em {
+  font-style: normal;
+  font-size: 16px;
+  font-weight: 600;
+  opacity: 0.8;
+  margin-top: 4px;
+}
+#aerial .ic.tool {
+  background: rgba(255, 255, 255, 0.14);
+  border: 1.5px solid rgba(255, 255, 255, 0.22);
+}
+
+/* Chosen icons (Settings → Icons). "logo": a coloured logo on a light tile;
+   "mono": any logo forced to white on glass, the uniform monochrome style. */
+#aerial .ic.logo,
+#aerial .rimg.logo {
+  background: linear-gradient(180deg, #ffffff, #e8ebf0);
+}
+#aerial .ic.logo img,
+#aerial .rimg.logo img {
+  width: 70%;
+  height: 70%;
+  object-fit: contain;
+}
+#aerial .ic.mono,
+#aerial .rimg.mono {
+  background: linear-gradient(180deg, var(--glass-a), var(--glass-b));
+  border: 1.5px solid var(--glass-line);
+}
+#aerial .ic.mono img,
+#aerial .rimg.mono img {
+  width: 48%;
+  height: 48%;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+}
+#aerial .ic.mono span {
+  font-size: calc(var(--ic) / 2.5);
+  font-weight: 300;
+}
+#aerial .rimg.mono span {
+  font-size: 28px;
+  font-weight: 400;
+}
+
+/* ------------------------------------------------------------------ dock */
+#aerial .dock {
+  position: absolute;
+  left: 0;
+  width: 1920px;
+  bottom: 118px;
+  display: flex;
+  justify-content: center;
+  transition: opacity 0.35s ease, transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+/* One spacing unit (28px) around and between icons; the pill's radius is the
+   icon radius plus that unit, so the corners stay concentric. */
+#aerial .dock-inner {
+  display: flex;
+  align-items: center;
+  padding: 26.5px 12.5px;
+  border-radius: calc(var(--ic) / 4 + 28px);
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+#aerial .dock.floating .dock-inner {
+  background: none;
+  box-shadow: none;
+  border-color: transparent;
+}
+#aerial .app {
+  position: relative;
+  width: var(--ic);
+  height: var(--ic);
+  margin: 0 14px;
+}
+#aerial .sep {
+  width: 1.5px;
+  height: calc(var(--ic) * 0.55);
+  background: rgba(255, 255, 255, 0.3);
+}
+#aerial .lbl {
+  position: absolute;
+  top: calc(var(--ic) + 46px);
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 21px;
+  font-weight: 500;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+}
+#aerial .dock.labels-always .lbl {
+  opacity: 0.85;
+}
+#aerial .dock.active .app.on .ic,
+#aerial .dock.active .app.on .ring {
+  transform: scale(1.12);
+}
+#aerial .dock.active .app.on .ring,
+#aerial .dock.active .app.on .lbl {
+  opacity: 1;
+}
+#aerial .dock.labels-never .lbl,
+#aerial .dock.lifted .lbl {
+  opacity: 0 !important;
+}
+#aerial .dock.dim {
+  opacity: 0.35;
+  transform: translateY(24px);
+}
+#aerial .dock.lifted {
+  transform: translateY(calc(-1 * var(--lift, 410px)));
+}
+#aerial .dock.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------- drawer ("More apps") */
+#aerial .drawer {
+  position: absolute;
+  left: 96px;
+  width: 1728px;
+  bottom: 56px;
+  box-sizing: border-box;
+  border-radius: 56px;
+  padding-top: 28px;
+  opacity: 0;
+  transform: translateY(80px);
+  transition: opacity 0.3s ease, transform 0.35s ease;
+  pointer-events: none;
+}
+#aerial .drawer.open {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+#aerial .drawer h3 {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  opacity: 0.65;
+  margin: 0 0 6px 72px;
+}
+#aerial .grid-wrap {
+  overflow: hidden;
+  position: relative;
+}
+#aerial .grid {
+  width: 1584px;
+  margin: 0 auto;
+  padding-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  transition: transform 0.25s ease;
+}
+#aerial .cell {
+  position: relative;
+  width: 176px;
+  height: calc(var(--ic) + 48px);
+  margin-bottom: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+#aerial .cell .tile {
+  position: relative;
+  width: var(--ic);
+  height: var(--ic);
+}
+#aerial .cell .cl {
+  font-size: 20px;
+  font-weight: 500;
+  margin-top: 14px;
+  max-width: 168px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.8;
+}
+#aerial .cell.on .ic,
+#aerial .cell.on .ring {
+  transform: scale(1.1);
+}
+#aerial .cell.on .ring,
+#aerial .cell.on .cl {
+  opacity: 1;
+}
+
+/* ---------------------------------------------------------- scene picker */
+#aerial .scenes {
+  position: absolute;
+  left: 0;
+  width: 1920px;
+  bottom: 330px;
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: none;
+}
+#aerial .scenes.open {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+#aerial .strip {
+  display: flex;
+  align-items: flex-start;
+  padding: 12px 0;
+  transition: transform 0.3s ease;
+}
+#aerial .scene {
+  width: 264px;
+  margin: 0 14px;
+  flex: none;
+  transition: transform 0.2s ease;
+}
+#aerial .thumb {
+  width: 264px;
+  height: 148px;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  border: 3px solid transparent;
+  box-sizing: border-box;
+  background: #111;
+}
+#aerial .thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+#aerial .stitle {
+  font-size: 21px;
+  font-weight: 500;
+  margin-top: 12px;
+  text-align: center;
+  opacity: 0.8;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#aerial .scene.playing .stitle:before {
+  content: "\25B6  ";
+  font-size: 16px;
+}
+#aerial .scene.on {
+  transform: translateY(-8px) scale(1.06);
+}
+#aerial .scene.on .thumb {
+  border-color: rgba(255, 255, 255, 0.95);
+}
+#aerial .scene.on .stitle {
+  opacity: 1;
+}
+
+/* -------------------------------------------------------------- settings */
+#aerial .shade {
+  background: rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+#aerial .shade.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+#aerial .win {
+  position: absolute;
+  left: 240px;
+  top: 140px;
+  width: 1440px;
+  height: 800px;
+  border-radius: 56px;
+  box-sizing: border-box;
+  padding: 28px;
+  display: flex;
+  opacity: 0;
+  transform: scale(0.96);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: none;
+}
+#aerial .win.open {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+#aerial .side {
+  width: 360px;
+  display: flex;
+  flex-direction: column;
+}
+#aerial .side h1 {
+  font-size: 40px;
+  font-weight: 600;
+  margin: 14px 0 22px 24px;
+  letter-spacing: -0.5px;
+}
+#aerial .nav {
+  height: 64px;
+  border-radius: 28px;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  margin-bottom: 6px;
+  font-size: 25px;
+  font-weight: 500;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+#aerial .nav svg {
+  width: 28px;
+  height: 28px;
+  margin-right: 18px;
+  flex: none;
+}
+#aerial .nav.sel {
+  background: rgba(255, 255, 255, 0.16);
+}
+#aerial .nav.on {
+  background: rgba(255, 255, 255, 0.94);
+  color: #111;
+}
+#aerial .nav.on svg * {
+  stroke: #111;
+}
+#aerial .vline {
+  width: 1.5px;
+  background: rgba(255, 255, 255, 0.18);
+  margin: 12px 28px;
+}
+#aerial .pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#aerial .pane h2 {
+  font-size: 40px;
+  font-weight: 600;
+  margin: 14px 0 6px 0;
+  letter-spacing: -0.5px;
+}
+#aerial .pane .sub {
+  font-size: 21px;
+  opacity: 0.68;
+  margin-bottom: 20px;
+}
+#aerial .rows-wrap {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+#aerial .rows {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  transition: transform 0.2s ease;
+}
+#aerial .row {
+  min-height: 84px;
+  border-radius: 28px;
+  display: flex;
+  align-items: center;
+  padding: 12px 28px;
+  box-sizing: border-box;
+  margin-bottom: 6px;
+  transition: background 0.15s ease;
+}
+#aerial .row.on {
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.9);
+}
+#aerial .row.moving {
+  background: rgba(255, 255, 255, 0.3);
+}
+#aerial .row.off {
+  opacity: 0.55;
+}
+#aerial .row.off.on {
+  opacity: 1;
+}
+#aerial .row .txt {
+  flex: 1;
+  min-width: 0;
+}
+#aerial .row .lab {
+  font-size: 26px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#aerial .row .desc {
+  font-size: 19px;
+  opacity: 0.65;
+  margin-top: 4px;
+}
+#aerial .row .val {
+  font-size: 24px;
+  font-weight: 500;
+  opacity: 0.9;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+#aerial .row .val i {
+  font-style: normal;
+  opacity: 0.5;
+  margin: 0 12px;
+  font-size: 22px;
+}
+#aerial .rimg {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  overflow: hidden;
+  margin-right: 22px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.12);
+}
+#aerial .rimg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+#aerial .rimg span {
+  font-size: 17px;
+  font-weight: 800;
+}
+#aerial .rimg svg {
+  width: 34px;
+  height: 34px;
+}
+#aerial .rimg.wide {
+  width: 114px;
+}
+#aerial .row input.isearch {
+  width: 100%;
+  box-sizing: border-box;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.4);
+  color: #fff;
+  font: inherit;
+  font-size: 26px;
+  font-weight: 500;
+  padding: 2px 0 4px;
+  outline: none;
+}
+#aerial .row input.isearch:focus {
+  border-bottom-color: #fff;
+}
+#aerial .head {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  opacity: 0.6;
+  padding: 18px 28px 10px;
+}
+#aerial .sw {
+  width: 66px;
+  height: 38px;
+  border-radius: 19px;
+  background: rgba(255, 255, 255, 0.22);
+  position: relative;
+  flex: none;
+  transition: background 0.2s ease;
+}
+#aerial .sw:after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 30px;
+  height: 30px;
+  border-radius: 15px;
+  background: #fff;
+  transition: transform 0.2s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+#aerial .sw.yes {
+  background: #34c759;
+}
+#aerial .sw.yes:after {
+  transform: translateX(28px);
+}
+#aerial .hint {
+  font-size: 19px;
+  opacity: 0.6;
+  padding: 14px 4px 4px;
+}
+#aerial .close {
+  position: absolute;
+  right: 28px;
+  top: 28px;
+  width: 64px;
+  height: 64px;
+  border-radius: 32px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.14);
+}
+#aerial .close svg {
+  width: 26px;
+  height: 26px;
+}
+#aerial .close.hot {
+  background: rgba(255, 255, 255, 0.94);
+}
+#aerial .close.hot svg * {
+  stroke: #111;
+}
+
+/* ----------------------------------------------------------------- toast */
+#aerial .toast {
+  position: absolute;
+  left: 50%;
+  top: 56px;
+  transform: translate(-50%, -20px);
+  padding: 16px 30px;
+  border-radius: 30px;
+  font-size: 22px;
+  font-weight: 500;
+  opacity: 0;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  pointer-events: none;
+  white-space: nowrap;
+}
+#aerial .toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* Scene pictures: the preview lies over a drawn placeholder, which shows for scenes
+   without a preview and whenever the preview can't load. */
+#aerial .art {
+  position: relative;
+}
+#aerial .art svg {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  opacity: 0.45;
+}
+#aerial .thumb.art svg {
+  width: 56px;
+  height: 56px;
+  margin: -28px 0 0 -28px;
+}
+#aerial .art img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}

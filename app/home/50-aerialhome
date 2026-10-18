@@ -1,0 +1,22 @@
+#!/bin/sh
+# Aerial Home: start the home-screen watcher at boot. Installed into
+# /var/lib/webosbrew/init.d/ by the app; removes itself (and the Home button
+# mapping) once the app is uninstalled.
+W=/media/developer/apps/usr/palm/applications/io.aerialhome/home/aerialhome-watcher.sh
+KEYBINDS=/home/root/.config/lginputhook/keybinds.json
+
+if [ ! -f "$W" ]; then
+  # Drop only our Home mapping ("773" launching io.aerialhome) as the app writes it:
+  # on one line, any spacing.
+  if [ -f "$KEYBINDS" ] && grep -q '"io\.aerialhome"' "$KEYBINDS"; then
+    sed -i -E \
+      -e 's/,[[:space:]]*"773"[[:space:]]*:[[:space:]]*\{[^}]*"io\.aerialhome"[^}]*\}//' \
+      -e 's/"773"[[:space:]]*:[[:space:]]*\{[^}]*"io\.aerialhome"[^}]*\}[[:space:]]*,?//' "$KEYBINDS"
+  fi
+  # Keep this script (and retry at the next boot) while a mapping is left.
+  grep -q '"io\.aerialhome"' "$KEYBINDS" 2>/dev/null || rm -f "$0"
+  exit 0
+fi
+
+# The watcher keeps its own log in its root-only state directory.
+setsid sh "$W" --boot </dev/null >/dev/null 2>&1 &
