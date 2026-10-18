@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="16 38 128 128" width="512" height="512">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0c1636"/>
+      <stop offset=".38" stop-color="#2f4279"/>
+      <stop offset=".54" stop-color="#8d7596"/>
+      <stop offset=".66" stop-color="#f0b18c"/>
+      <stop offset="1" stop-color="#f7cfa6"/>
+    </linearGradient>
+    <radialGradient id="sun" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="#fff4e4"/>
+      <stop offset=".3" stop-color="#ffe0bd" stop-opacity=".9"/>
+      <stop offset="1" stop-color="#ffc28e" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="far" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7b78a6"/>
+      <stop offset="1" stop-color="#4a5285"/>
+    </linearGradient>
+    <linearGradient id="mid" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#34407a"/>
+      <stop offset="1" stop-color="#1f2853"/>
+    </linearGradient>
+    <linearGradient id="near" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#141c3d"/>
+      <stop offset="1" stop-color="#070b1c"/>
+    </linearGradient>
+    <linearGradient id="mist" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe6d6" stop-opacity="0"/>
+      <stop offset=".5" stop-color="#ffe6d6" stop-opacity=".3"/>
+      <stop offset="1" stop-color="#ffe6d6" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".34"/>
+      <stop offset="1" stop-color="#fff" stop-opacity=".12"/>
+    </linearGradient>
+    <clipPath id="round">
+      <rect x="16" y="38" width="128" height="128" rx="29"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#round)">
+  <g id="land">
+    <rect width="160" height="160" fill="url(#sky)"/>
+    <circle cx="100" cy="90" r="30" fill="url(#sun)"/>
+    <path d="M0 98 L12 90 L22 94 L40 70 L50 80 L58 74 L76 94 L88 87 L100 97 L116 80 L128 89 L144 75 L160 87 V166 H0Z" fill="url(#far)" fill-opacity=".92"/>
+    <rect x="0" y="92" width="160" height="22" fill="url(#mist)"/>
+    <path d="M0 112 L18 102 L32 108 L52 92 L70 107 L86 99 L104 111 L124 98 L142 107 L160 101 V166 H0Z" fill="url(#mid)"/>
+    <rect x="0" y="106" width="160" height="16" fill="url(#mist)" opacity=".6"/>
+    <path d="M0 126 L24 116 L46 122 L70 111 L96 124 L122 115 L146 122 L160 118 V166 H0Z" fill="url(#near)"/>
+  </g>
+  <g id="dock">
+    <rect x="33" y="130" width="94" height="20" rx="10" fill="url(#glass)" stroke="#fff" stroke-opacity=".55" stroke-width="1"/>
+    <circle cx="62" cy="140" r="3" fill="#fff" fill-opacity=".7"/>
+    <circle cx="80" cy="140" r="4" fill="#fff"/>
+    <circle cx="98" cy="140" r="3" fill="#fff" fill-opacity=".7"/>
+  </g>
+  </g>
+  <rect x="16.4" y="38.4" width="127.2" height="127.2" rx="28.6" fill="none" stroke="#fff" stroke-opacity=".18" stroke-width=".8"/>
+</svg>

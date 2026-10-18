@@ -1,9 +1,19 @@
+<div align="center">
+
+<img src="docs/icon.svg" width="96" height="96" alt="">
+
 # Aerial Home
 
-<img src="docs/icon160.png" width="80" align="right" alt="">
+An ad-free home screen for rooted LG webOS TVs: aerial video behind a clean glass interface, your apps in a dock, the rest one press away.
 
-An ad-free home screen for rooted LG webOS TVs: aerial video behind a clean glass
-interface, your apps in a dock, the rest one press away.
+<picture>
+  <source srcset="docs/hero.avif" type="image/avif">
+  <img src="docs/hero.jpg" width="100%" alt="Aerial Home on an LG TV: moving through the dock, switching scenes with the scene picker, and the settings">
+</picture>
+
+<sub>Filmed on an LG UP80 with webOS 6.5.</sub>
+
+</div>
 
 - **Scenes**: a library of ~200 aerials streamed from Apple and the Aerial community
   (a starter set plays out of the box), plus clips stored on the TV for instant,

@@ -37,11 +37,11 @@
   <g id="land">
     <rect width="160" height="160" fill="url(#sky)"/>
     <circle cx="100" cy="90" r="30" fill="url(#sun)"/>
-    <path d="M0 98 L12 90 L22 94 L40 70 L50 80 L58 74 L76 94 L88 87 L100 97 L116 80 L128 89 L144 75 L160 87 V160 H0Z" fill="url(#far)" fill-opacity=".92"/>
+    <path d="M0 98 L12 90 L22 94 L40 70 L50 80 L58 74 L76 94 L88 87 L100 97 L116 80 L128 89 L144 75 L160 87 V166 H0Z" fill="url(#far)" fill-opacity=".92"/>
     <rect x="0" y="92" width="160" height="22" fill="url(#mist)"/>
-    <path d="M0 112 L18 102 L32 108 L52 92 L70 107 L86 99 L104 111 L124 98 L142 107 L160 101 V160 H0Z" fill="url(#mid)"/>
+    <path d="M0 112 L18 102 L32 108 L52 92 L70 107 L86 99 L104 111 L124 98 L142 107 L160 101 V166 H0Z" fill="url(#mid)"/>
     <rect x="0" y="106" width="160" height="16" fill="url(#mist)" opacity=".6"/>
-    <path d="M0 126 L24 116 L46 122 L70 111 L96 124 L122 115 L146 122 L160 118 V160 H0Z" fill="url(#near)"/>
+    <path d="M0 126 L24 116 L46 122 L70 111 L96 124 L122 115 L146 122 L160 118 V166 H0Z" fill="url(#near)"/>
   </g>
   <g id="dock">
     <rect x="33" y="130" width="94" height="20" rx="10" fill="url(#glass)" stroke="#fff" stroke-opacity=".55" stroke-width="1"/>
