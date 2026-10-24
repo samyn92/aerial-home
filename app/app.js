@@ -60,6 +60,7 @@
   var DEFAULTS = {
     dockApps: DEFAULT_DOCK,
     drawerApps: null, // filled from the installed apps on first run
+    knownApps: null, // user apps already seen; anything else is new and goes into "More apps"
     dockInputs: [],
     sceneOff: {},
     streamScenes: [],
@@ -162,17 +163,24 @@
 
   // ---------------------------------------------------------- app catalogue
   var catalog = {};
+  var catalogLoaded = false; // the installed apps have been read at least once
   EXTRA_APPS.forEach(function (a) { catalog[a.id] = Object.assign({ system: true }, a); });
 
   function loadCatalog() {
     return exec("luna-send -n 1 luna://com.webos.applicationManager/listApps '{}'").then(function (out) {
       var apps = (JSON.parse(out || "{}").apps) || [];
+      // A reload replaces the installed apps, so uninstalled ones drop out; the
+      // extra system apps and the inputs stay.
+      Object.keys(catalog).forEach(function (id) {
+        if (!catalog[id].input && !EXTRA_APPS.some(function (a) { return a.id === id; })) delete catalog[id];
+      });
       apps.forEach(function (a) {
         if (a.visible === false || a.noWindow || NEVER_LIST.indexOf(a.id) !== -1) return;
         var p = a.largeIcon || a.icon || "";
         if (p && p.charAt(0) !== "/") p = (a.folderPath || "") + "/" + p;
         catalog[a.id] = { id: a.id, title: a.title, iconPath: p, system: !!a.systemApp };
       });
+      catalogLoaded = true;
     });
   }
   var inputs = [];
@@ -203,6 +211,39 @@
     }).sort(function (a, b) { return appTitle(a).localeCompare(appTitle(b)); });
     settings.drawerApps = user.concat(system.filter(function (id) { return catalog[id]; }));
     saveSettings();
+  }
+  // Apps installed since the last look go into "More apps". knownApps remembers
+  // what was already seen, so an app moved to Hidden stays hidden. Settings from
+  // before knownApps existed can't tell hidden from never seen; there, every
+  // unplaced app of the user's goes to "More apps" once.
+  function adoptNewApps() {
+    if (!catalogLoaded || !settings.drawerApps) return;
+    var user = Object.keys(catalog).filter(function (id) { return isApp(id) && !catalog[id].system; });
+    var known = settings.knownApps || [];
+    var placed = settings.dockApps.concat(settings.drawerApps || []);
+    var added = user.filter(function (id) { return known.indexOf(id) === -1; });
+    if (!added.length && settings.knownApps) return;
+    var fresh = added.filter(function (id) { return placed.indexOf(id) === -1; })
+      .sort(function (a, b) { return appTitle(a).localeCompare(appTitle(b)); });
+    settings.drawerApps = (settings.drawerApps || []).concat(fresh);
+    settings.knownApps = known.concat(added);
+    saveSettings();
+  }
+  // Aerial Home rarely restarts (Quick Start+ keeps it running), so it reloads the
+  // installed apps whenever it comes back to the front.
+  var appsReload = null;
+  function reloadApps() {
+    if (appsReload) return appsReload;
+    appsReload = loadCatalog().then(function () {
+      adoptNewApps();
+      buildDock();
+      buildDrawer();
+      if (ui.zone === "settings") buildSection();
+      render();
+      var ids = dockItems.concat(drawerItems).filter(function (id) { return id.charAt(0) !== "_"; });
+      return Promise.all(ids.map(ensureIcon)).then(function () { buildDock(); buildDrawer(); render(); });
+    }).catch(function () {}).then(function () { appsReload = null; });
+    return appsReload;
   }
 
   // Other apps' icons are outside our sandbox; read them as root and cache them.
@@ -1882,6 +1923,8 @@
     wake();
     watch.since = Date.now();
     play();
+    // Something may have been installed or removed meanwhile.
+    reloadApps();
   });
   // Launched again while running (Home button, watcher): come to the front and start
   // fresh on the dock. With handlesRelaunch the system leaves bringing us forward to us.
@@ -1944,6 +1987,7 @@
   }).catch(function () {});
   Promise.all([loadCatalog().catch(function () {}), loadInputs().catch(function () {})]).then(function () {
     seedDrawer();
+    adoptNewApps();
     buildDock();
     buildDrawer();
     render();
