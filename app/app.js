@@ -13,7 +13,7 @@
   "use strict";
 
   var APP_ID = "io.aerialhome";
-  var VERSION = "1.5.0";
+  var VERSION = "1.5.2";
   var DATA = window.AERIAL_DATA;
   var I18N = window.AERIAL_I18N;
   var SCENE_PATH = "/media/developer/aerial-home/scenes/"; // filled by tools/push-scenes.sh
@@ -443,6 +443,7 @@
           saveSettings();
           buildDock();
           buildDrawer();
+          if (settings.iconStyle === style) refreshIconRows(id);
           render();
         });
       });
@@ -635,15 +636,12 @@
       buildPicker();
       renderScenes();
     }
-    if (ui.zone === "settings") {
-      var hit = false;
+    if (ui.zone === "settings" && SECTIONS[ui.section].name === "library") loadVisibleRows();
+    else if (ui.zone === "settings" && SECTIONS[ui.section].name === "scenes") {
       for (var i = 0; i < rowsCache.length; i++) {
-        if (rowsCache[i].key && ids.indexOf(rowsCache[i].key) !== -1) {
-          refreshRow(i);
-          hit = true;
-        }
+        if (rowsCache[i].key && ids.indexOf(rowsCache[i].key) !== -1) refreshRow(i);
       }
-      if (hit) renderSettings();
+      renderSettings();
     }
   }
   // The streamed scenes in use: the user's choice, or a starter set while there's nothing else.
@@ -714,7 +712,10 @@
     if (chosen) return chosenIconHtml(chosen, cls, initial(id));
     var brand = BRAND[id];
     if (brand) return '<div class="' + cls + '" style="background:' + brand.bg + '"><span>' + brand.text + "</span></div>";
-    if (iconCache[id]) return '<div class="' + cls + '"><img src="' + esc(iconCache[id]) + '"></div>';
+    if (iconCache[id]) {
+      if (cls === "rimg") return '<div class="' + cls + '"><img data-cached-icon="' + esc(id) + '"></div>';
+      return '<div class="' + cls + '"><img src="' + esc(iconCache[id]) + '"></div>';
+    }
     return '<div class="' + cls + '" style="background:' + hashColor(id) + '"><span>' + esc(initial(id)) + "</span></div>";
   }
   function chosenIconHtml(icon, cls, letter) {
@@ -810,11 +811,12 @@
     el.weather.style.display = settings.showWeather ? "" : "none";
     el.drawerTitle.textContent = t("moreApps");
     el.winTitle.textContent = t("settings");
-    tick();
+    tick(true);
   }
 
   // ------------------------------------------------------------------- dock
   var dockItems = [];
+  var focusedDock = null;
   function buildDock() {
     dockItems = settings.dockApps.filter(isApp).concat(settings.dockInputs.filter(function (id) { return catalog[id]; }));
     dockItems.push("__settings");
@@ -836,7 +838,7 @@
       (z === "dock" ? " active" : z === "scenes" ? " dim" : z === "drawer" ? " lifted" : " hidden") +
       " labels-" + settings.labels;
     var apps = el.dockInner.querySelectorAll(".app");
-    for (var i = 0; i < apps.length; i++) apps[i].className = "app" + (i === ui.dockFocus ? " on" : "");
+    focusedDock = setFocused(focusedDock, apps[ui.dockFocus], "on");
     el.info.style.opacity = z === "settings" ? "0" : "1";
     // Clean view: the dock slides away, the info lifts out, only the video stays.
     root.classList.toggle("clean", z === "clean");
@@ -849,6 +851,8 @@
 
   // ----------------------------------------------------------------- drawer
   var drawerItems = [];
+  var focusedDrawer = null;
+  var drawerGeometryDirty = true;
   function buildDrawer() {
     drawerItems = (settings.drawerApps || []).filter(isApp);
     drawerItems.push("__add");
@@ -856,22 +860,25 @@
       var title = id === "__add" ? t("addApps") : appTitle(id);
       return '<div class="cell"><div class="tile">' + tileHtml(id) + '<div class="ring"></div></div><div class="cl">' + esc(title) + "</div></div>";
     }).join("");
+    drawerGeometryDirty = true;
     if (ui.drawerFocus >= drawerItems.length) ui.drawerFocus = drawerItems.length - 1;
   }
   function renderDrawer() {
     el.drawer.className = "drawer glass" + (ui.zone === "drawer" ? " open" : "");
-    var cells = el.grid.children;
-    for (var i = 0; i < cells.length; i++) cells[i].className = "cell" + (ui.zone === "drawer" && i === ui.drawerFocus ? " on" : "");
+    focusedDrawer = setFocused(focusedDrawer, ui.zone === "drawer" ? el.grid.children[ui.drawerFocus] : null, "on");
     // Up to two rows are visible; scroll so the focused row is one of them.
     var rowH = settings.iconSize + 48 + 28;
     var rows = Math.ceil(drawerItems.length / DRAWER_COLS);
     var visible = Math.min(2, rows);
-    el.grid.parentNode.style.height = visible * rowH + 16 + "px";
+    if (drawerGeometryDirty) el.grid.parentNode.style.height = visible * rowH + 16 + "px";
     var row = Math.floor(ui.drawerFocus / DRAWER_COLS);
     var top = Math.min(Math.max(0, row - 1), rows - visible);
     el.grid.style.transform = "translateY(" + -top * rowH + "px)";
     // Lift the dock so it sits one spacing unit above the drawer.
-    el.dock.style.setProperty("--lift", 56 + el.drawer.offsetHeight + 28 - 118 + "px");
+    if (drawerGeometryDirty) {
+      el.dock.style.setProperty("--lift", 56 + el.drawer.offsetHeight + 28 - 118 + "px");
+      drawerGeometryDirty = false;
+    }
   }
   function openDrawerItem(why) {
     var id = drawerItems[ui.drawerFocus];
@@ -881,17 +888,26 @@
 
   // ----------------------------------------------------------- scene picker
   var pickerScenes = [];
+  var focusedScene = null;
+  var playingScene = null;
+  var renderedSceneKey = null;
   function buildPicker() {
     pickerScenes = myScenes();
     el.strip.innerHTML = pickerScenes.map(function (s) {
       return '<div class="scene">' + sceneArt(s.key, s.thumb, "thumb", false) + '<div class="stitle">' + esc(s.title) + "</div></div>";
     }).join("");
+    playingScene = null;
+    renderedSceneKey = null;
   }
   function renderScenes() {
     el.scenes.className = "scenes" + (ui.zone === "scenes" ? " open" : "");
     var nodes = el.strip.children;
-    for (var i = 0; i < nodes.length; i++) {
-      nodes[i].className = "scene" + (pickerScenes[i].key === ui.scene ? " playing" : "") + (ui.zone === "scenes" && i === ui.sceneFocus ? " on" : "");
+    focusedScene = setFocused(focusedScene, ui.zone === "scenes" ? nodes[ui.sceneFocus] : null, "on");
+    if (renderedSceneKey !== ui.scene) {
+      var playing = null;
+      for (var i = 0; i < pickerScenes.length; i++) if (pickerScenes[i].key === ui.scene) { playing = nodes[i]; break; }
+      playingScene = setFocused(playingScene, playing, "playing");
+      renderedSceneKey = ui.scene;
     }
     // Centre the focused tile when the strip is wider than the screen.
     var tile = 292;
@@ -985,15 +1001,20 @@
   }
 
   // ------------------------------------------------------------ clock/weather
-  function tick() {
+  var clockMinute = null;
+  function tick(force) {
     var d = new Date();
-    var hh = d.getHours();
-    var mm = ("0" + d.getMinutes()).slice(-2);
-    if (settings.clock24) el.time.textContent = ("0" + hh).slice(-2) + ":" + mm;
-    else el.time.innerHTML = ((hh + 11) % 12 + 1) + ":" + mm + "<small>" + (hh < 12 ? "AM" : "PM") + "</small>";
-    var greet = t(hh < 5 ? "goodNight" : hh < 12 ? "goodMorning" : hh < 18 ? "goodAfternoon" : "goodEvening");
-    var date = d.toLocaleDateString(t("locale"), { weekday: "long", day: "numeric", month: "long" });
-    el.greet.textContent = [settings.showGreeting ? greet : "", settings.showDate ? date : ""].filter(Boolean).join(" · ");
+    var minute = Math.floor(d.getTime() / 60000);
+    if (force || minute !== clockMinute) {
+      clockMinute = minute;
+      var hh = d.getHours();
+      var mm = ("0" + d.getMinutes()).slice(-2);
+      if (settings.clock24) el.time.textContent = ("0" + hh).slice(-2) + ":" + mm;
+      else el.time.innerHTML = ((hh + 11) % 12 + 1) + ":" + mm + "<small>" + (hh < 12 ? "AM" : "PM") + "</small>";
+      var greet = t(hh < 5 ? "goodNight" : hh < 12 ? "goodMorning" : hh < 18 ? "goodAfternoon" : "goodEvening");
+      var date = d.toLocaleDateString(t("locale"), { weekday: "long", day: "numeric", month: "long" });
+      el.greet.textContent = [settings.showGreeting ? greet : "", settings.showDate ? date : ""].filter(Boolean).join(" · ");
+    }
     if (settings.idlePause && !idlePaused && !document.hidden && Date.now() - lastKey > settings.idlePause * 60000 && ui.zone === "dock") {
       idlePaused = true;
       v.pause();
@@ -1327,7 +1348,7 @@
     var icons = Object.assign({}, settings.icons);
     var done = function () {
       settings.icons = icons;
-      changed();
+      changed("icons");
       toast(t("iconUpdated"));
       closePicker();
       render();
@@ -1391,7 +1412,7 @@
       lead = sceneArt(r.key, libraryById[r.key] ? previewFor(libraryById[r.key]) : r.thumb, "rimg wide", false);
       right = sw(!settings.sceneOff[r.key]);
     } else if (r.type === "lib") {
-      lead = sceneArt(r.key, previewFor(libraryById[r.key]), "rimg wide", true);
+      lead = sceneArt(r.key, null, "rimg wide", false);
       if (r.key === ui.scene) desc = t("playingNow") + " · " + desc;
       right = sw(streamIds().indexOf(r.key) !== -1);
     } else if (r.type === "input") {
@@ -1452,24 +1473,69 @@
     else if (bottom + 40 > cur + wrapH) cur = bottom + 40 - wrapH;
     el.rows.style.transform = "translateY(" + -cur + "px)";
   }
+  // Load pictures around the visible rows, including when the pointer scrolls
+  // independently of the focused row. Cached TV icons can be large data URLs.
+  function loadVisibleRows() {
+    if (ui.zone !== "settings") return;
+    var nodes = el.rows.children;
+    var m = /translateY\((-?[\d.]+)px\)/.exec(el.rows.style.transform || "");
+    var top = Math.max(0, (m ? -parseFloat(m[1]) : 0) - 200);
+    var bottom = top + el.rowsWrap.clientHeight + 400;
+    var lo = 0;
+    var hi = nodes.length;
+    while (lo < hi) {
+      var mid = Math.floor((lo + hi) / 2);
+      if (nodes[mid].offsetTop + nodes[mid].offsetHeight < top) lo = mid + 1;
+      else hi = mid;
+    }
+    var images = [];
+    for (var i = lo; i < nodes.length && nodes[i].offsetTop <= bottom; i++) {
+      var cached = nodes[i].querySelector("img[data-cached-icon]");
+      if (cached) images.push({ img: cached, src: iconCache[cached.getAttribute("data-cached-icon")] });
+      if (rowsCache[i].type === "lib") {
+        var art = nodes[i].querySelector(".art");
+        if (!art || art.querySelector("img")) continue;
+        var src = previewFor(libraryById[rowsCache[i].key]);
+        if (src) images.push({ art: art, src: src });
+      }
+    }
+    images.forEach(function (image) {
+      if (image.img) {
+        image.img.src = image.src;
+        image.img.removeAttribute("data-cached-icon");
+      } else {
+        image.art.insertAdjacentHTML("beforeend", '<img alt="" decoding="async" src="' + esc(image.src) + '">');
+      }
+    });
+  }
+  var focusedNav = null;
+  var focusedRow = null;
+  var settingsWasOpen = false;
   function renderSettings() {
     var open = ui.zone === "settings";
+    if (!open && !settingsWasOpen) return;
+    settingsWasOpen = open;
     el.shade.className = "layer shade" + (open ? " open" : "");
     el.win.className = "win glass" + (open ? " open" : "");
     el.close.style.display = ui.pointer ? "flex" : "none";
     el.close.className = "close" + (ui.hot === "close" ? " hot" : "");
-    var navs = el.navs.children;
-    for (var i = 0; i < navs.length; i++) {
-      navs[i].className = "nav" + (i === ui.section ? (ui.settingsZone === "side" ? " on" : " sel") : "");
+    var nextNav = el.navs.children[ui.section];
+    if (focusedNav && focusedNav !== nextNav) focusedNav.classList.remove("on", "sel");
+    focusedNav = nextNav;
+    if (focusedNav) {
+      focusedNav.classList.toggle("on", ui.settingsZone === "side");
+      focusedNav.classList.toggle("sel", ui.settingsZone !== "side");
     }
-    var nodes = el.rows.children;
-    for (var j = 0; j < nodes.length; j++) {
-      if (rowsCache[j].type === "head") continue;
-      var base = nodes[j].className.replace(/ on| moving/g, "");
-      nodes[j].className = base + (ui.settingsZone === "rows" && j === ui.row ? (ui.moving ? " on moving" : " on") : "");
+    var nextRow = ui.settingsZone === "rows" ? el.rows.children[ui.row] : null;
+    if (focusedRow && focusedRow !== nextRow) focusedRow.classList.remove("on", "moving");
+    focusedRow = nextRow;
+    if (focusedRow) {
+      focusedRow.classList.add("on");
+      focusedRow.classList.toggle("moving", ui.moving);
     }
     // The pointer scrolls with the wheel; moving rows under a resting cursor would make focus jump.
     if (open && ui.settingsZone === "rows" && !ui.pointer) scrollRowIntoView();
+    if (open) loadVisibleRows();
   }
   function firstFocusable() {
     for (var i = 0; i < rowsCache.length; i++) if (focusable(rowsCache[i])) return i;
@@ -1487,12 +1553,19 @@
     tmp.innerHTML = rowHtml(rowsCache[i]);
     node.parentNode.replaceChild(tmp.firstChild, node);
   }
-  function changed() {
+  function refreshIconRows(id) {
+    if (ui.zone !== "settings" || SECTIONS[ui.section].name !== "icons" || picker) return;
+    for (var i = 0; i < rowsCache.length; i++) {
+      if (rowsCache[i].type === "iconapp" && (!id || rowsCache[i].id === id)) refreshRow(i);
+    }
+  }
+  function changed(scope) {
     saveSettings();
     applyLook();
-    buildDock();
-    buildDrawer();
-    buildPicker();
+    if (!scope || scope === "apps" || scope === "icons" || scope === "input" || scope === "size") buildDock();
+    if (!scope || scope === "apps" || scope === "icons") buildDrawer();
+    if (!scope || scope === "scenes") buildPicker();
+    if (scope === "size") drawerGeometryDirty = true;
     v.loop = !settings.autoRotate;
   }
   function focusRow(match) {
@@ -1585,7 +1658,7 @@
       }
       var order = places().map(function (p) { return p[0]; });
       setPlace(r.id, order[(order.indexOf(placeOf(r.id)) + dir + order.length) % order.length]);
-      changed();
+      changed("apps");
       buildSection();
       focusRow(function (x) { return x.id === r.id; });
       return;
@@ -1611,9 +1684,16 @@
     } else {
       return;
     }
-    changed();
+    var scope = "other";
+    if (r.type === "lib") scope = "scenes";
+    else if (r.type === "input") scope = "input";
+    else if (r.key === "iconStyle") scope = "icons";
+    else if (r.key === "iconSize") scope = "size";
+    changed(scope);
+    if (r.key === "iconStyle") refreshIconRows();
     refreshRow(ui.row);
   }
+  var appOrderDirty = false;
   function moveApp(dir) {
     var r = rowsCache[ui.row];
     var key = listFor(placeOf(r.id));
@@ -1621,18 +1701,30 @@
     var list = settings[key].slice();
     var pos = list.indexOf(r.id);
     var to = pos + dir;
+    while (to >= 0 && to < list.length && !isApp(list[to])) to += dir;
     if (pos === -1 || to < 0 || to >= list.length) return;
-    list.splice(pos, 1);
-    list.splice(to, 0, r.id);
+    list[pos] = list[to];
+    list[to] = r.id;
     settings[key] = list;
-    changed();
-    buildSection();
-    focusRow(function (x) { return x.id === r.id; });
+    saveSettings();
+    appOrderDirty = true;
+    var next = ui.row + dir;
+    var currentNode = el.rows.children[ui.row];
+    var nextNode = el.rows.children[next];
+    if (dir < 0) el.rows.insertBefore(currentNode, nextNode);
+    else el.rows.insertBefore(nextNode, currentNode);
+    rowsCache[ui.row] = rowsCache[next];
+    rowsCache[next] = r;
+    nextNode.querySelector(".desc").textContent = t("position", { n: pos + 1 });
+    currentNode.querySelector(".desc").textContent = t("position", { n: to + 1 });
+    ui.row = next;
   }
   function loadMissingIcons() {
     Object.keys(catalog).forEach(function (id) {
       if (Object.prototype.hasOwnProperty.call(iconCache, id)) return;
-      ensureIcon(id).then(function () {
+      if (!catalog[id].iconPath || !safePath(catalog[id].iconPath)) return;
+      ensureIcon(id).then(function (icon) {
+        if (!icon) return;
         buildDrawer();
         if (ui.zone !== "settings" || SECTIONS[ui.section].name !== "apps") return;
         for (var k = 0; k < rowsCache.length; k++) if (rowsCache[k].id === id) refreshRow(k);
@@ -1658,11 +1750,25 @@
   }
 
   // ------------------------------------------------------------------- keys
+  function setFocused(previous, next, cls) {
+    if (previous !== next) {
+      if (previous) previous.classList.remove(cls);
+      if (next) next.classList.add(cls);
+    }
+    return next || null;
+  }
+  var lastRenderedZone = null;
   function render() {
+    if (appOrderDirty && !ui.moving) {
+      appOrderDirty = false;
+      buildDock();
+      buildDrawer();
+    }
     renderDock();
-    renderDrawer();
-    renderScenes();
-    renderSettings();
+    if (ui.zone === "drawer" || lastRenderedZone === "drawer") renderDrawer();
+    if (ui.zone === "scenes" || lastRenderedZone === "scenes") renderScenes();
+    if (ui.zone === "settings" || lastRenderedZone === "settings") renderSettings();
+    lastRenderedZone = ui.zone;
   }
   function wake() {
     lastKey = Date.now();
@@ -1900,6 +2006,7 @@
       var max = Math.max(0, el.rows.scrollHeight - el.rowsWrap.clientHeight + 40);
       cur = Math.min(max, Math.max(0, cur + (down ? 180 : -180)));
       el.rows.style.transform = "translateY(" + -cur + "px)";
+      loadVisibleRows();
       return;
     }
     // Elsewhere one wheel notch moves between areas; ignore the rest of a fast spin.
